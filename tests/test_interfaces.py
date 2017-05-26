@@ -24,6 +24,31 @@ class TestNetworkAdapter(unittest.TestCase):
         message = "Failed to get correct adapter name!"
         self.assertEqual(self.adapter.name, self.adapter_name, message)
 
+    def test_is_managed_by_nm_false(self):
+        """
+        Test is_managed_by_nm variable when adapter is not managed by NetworkManager
+        """
+
+        message = "Failed to get False for adaptor is not managed by NetworkManager"
+        self.assertFalse(self.adapter.has_ap_mode, message)
+
+    def test_is_managed_by_nm_true(self):
+        """
+        Test is_managed_by_nm variable when adapter is managed by NetworkManager
+        """
+
+        self.adapter.is_managed_by_nm = True
+        message = "Fail to get True when adapter is managed by NetworkManager"
+        self.assertTrue(self.adapter.is_managed_by_nm, message)
+
+    def test_is_managed_by_nm_set_invalid_value_error(self):
+        """
+        Test setting is_managed_by_nm variable with invalid value
+        """
+
+        with self.assertRaises(interfaces.InvalidValueError):
+            self.adapter.is_managed_by_nm = "Invalid Value"
+
     def test_has_ap_mode_false(self):
         """
         Test has_ap_mode variable when no AP mode support is available
