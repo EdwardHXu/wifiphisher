@@ -184,7 +184,6 @@ class NetworkAdapter(object):
         self._name = name
         self._has_ap_mode = False
         self._has_monitor_mode = False
-        self._is_wireless = False
         self._is_managed_by_nm = False
         self._card = card_obj
         self._original_mac_address = mac_address
@@ -295,38 +294,6 @@ class NetworkAdapter(object):
 
         if isinstance(value, bool):
             self._has_monitor_mode = value
-        else:
-            raise InvalidValueError(value, bool)
-
-    @property
-    def is_wireless(self):
-        """
-        Return whether the interface is wireless or not
-
-        :param self: A NetworkAdapter object
-        :type self: NetworkAdapter
-        :return: True if interface is wireless and False otherwise
-        :rtype: bool
-        """
-
-        return self._is_wireless
-
-    @is_wireless.setter
-    def is_wireless(self, value):
-        """
-        Set adapters's wireless mode to True
-
-        :param self: A NetworkAdapter object
-        :param value: A value representing monitor mode support
-        :type self: NetworkAdapter
-        :type value: bool
-        :return: None
-        :rtype: None
-        :raises InvalidValueError: When the given value is not bool
-        """
-
-        if isinstance(value, bool):
-            self._is_wireless = value
         else:
             raise InvalidValueError(value, bool)
 
@@ -606,34 +573,6 @@ class NetworkManager(object):
 
         return (monitor_interface, ap_interface)
 
-    def is_interface_wired(self, interface_name):
-        """
-        Check whether the interface is wired or not
-
-        :param self: A NetworkManager object
-        :param interface_name: Name of an interface
-        :type self: NetworkManager
-        :type interface_name: str
-        :return: True if interface is wireless
-        :rtype: bool
-        :raises InvalidInternetInterfaceError: If interface is not
-            wired
-        :raises InvalidInterfaceError: If interface provided is not
-            valid
-        """
-
-        try:
-            is_wireless = self._name_to_object[interface_name].is_wireless
-
-            # check for network type(wired, wireless) and raise an error if is wireless
-            if is_wireless:
-                raise InvalidInternetInterfaceError(interface_name)
-            else:
-                return True
-        # raise an error in case of provided interface is invalid
-        except KeyError:
-            raise InvalidInterfaceError(interface_name)
-
     def unblock_interface(self, interface_name):
         """
         Unblock interface if it is blocked
@@ -736,7 +675,8 @@ def is_managed_by_network_manager(interface_name):
     bus = dbus.SystemBus()
     is_managed = False
     try:
-        network_manager_proxy = bus.get_object(constants.NM_APP_PATH, constants.NM_MANAGER_OBJ_PATH)
+        network_manager_proxy = bus.get_object(
+            constants.NM_APP_PATH, constants.NM_MANAGER_OBJ_PATH)
         network_manager = dbus.Interface(
             network_manager_proxy,
             dbus_interface=constants.NM_MANAGER_INTERFACE_PATH)
@@ -770,8 +710,6 @@ def interface_property_detector(network_adapter):
         network_adapter.has_monitor_mode = True
     if "AP" in supported_modes:
         network_adapter.has_ap_mode = True
-    if pyw.iswireless(network_adapter.name):
-        network_adapter.is_wireless = True
 
     interface_name = network_adapter.name
     network_adapter.is_managed_by_nm = is_managed_by_network_manager(interface_name)

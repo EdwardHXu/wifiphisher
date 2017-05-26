@@ -79,29 +79,6 @@ class TestNetworkAdapter(unittest.TestCase):
         with self.assertRaises(interfaces.InvalidValueError):
             self.adapter.has_monitor_mode = "Invalid Value"
 
-    def test_is_wireless_false(self):
-        """
-        Test is_wireless variable when interface is not wireless
-        """
-
-        message = "Failed to get False for adapter which is not wireless"
-        self.assertFalse(self.adapter.is_wireless, message)
-
-    def test_is_wireless_true(self):
-        """ Test is_wireless variable when interface is wireless """
-
-        # mark interface as wireless
-        self.adapter.is_wireless = True
-
-        message = "Failed to get True for adapter which is wireless"
-        self.assertTrue(self.adapter.is_wireless, message)
-
-    def test_is_wireless_set_invalid_value_error(self):
-        """ Test setting is_wireless variable with invalid type"""
-
-        with self.assertRaises(interfaces.InvalidValueError):
-            self.adapter.is_wireless = "Invalid Value"
-
     def test_card_value(self):
         """
         Test card variable to get the pyric.Card object
@@ -205,34 +182,6 @@ class TestInterfacePropertyDetector(unittest.TestCase):
 
         message = "Shows interface has AP mode when it does not"
         self.assertFalse(self.adapter.has_ap_mode, message)
-
-    @mock.patch("wifiphisher.common.interfaces.pyw")
-    def test_interface_property_detector_is_wireless(self, pyric):
-        """
-        Test interface_property_detector function when the interface
-        is wireless
-        """
-
-        pyric.iswireless.return_value = True
-
-        interfaces.interface_property_detector(self.adapter)
-
-        message = "Failed to show interface as wireless when it is"
-        self.assertTrue(self.adapter.is_wireless, message)
-
-    @mock.patch("wifiphisher.common.interfaces.pyw")
-    def test_interface_property_detector_is_not_wireless(self, pyric):
-        """
-        Test interface_property_detector function when the interface
-        is not wireless
-        """
-
-        pyric.iswireless.return_value = False
-
-        interfaces.interface_property_detector(self.adapter)
-
-        message = "Shows interfaces is wireless when it is not"
-        self.assertFalse(self.adapter.is_wireless, message)
 
 
 class TestNetworkManager(unittest.TestCase):
@@ -514,35 +463,6 @@ class TestNetworkManager(unittest.TestCase):
         actual = self.network_manager.get_interface_automatically()
 
         self.assertEqual(expected, actual)
-
-    def test_is_interface_wired_is_wired_true(self):
-        """
-        Tests is_interface_wired when interface is wired
-        """
-
-        interface_name = "lan0"
-        interface_object = "Card Object"
-        adapter = interfaces.NetworkAdapter(interface_name, interface_object, self.mac_address)
-        adapter.is_wireless = False
-        self.network_manager._name_to_object[interface_name] = adapter
-
-        actual = self.network_manager.is_interface_wired(interface_name)
-        message = "Failed to identify interface as wired when interface was wired"
-        self.assertTrue(actual, message)
-
-    def test_is_interface_wired_is_wireless_error(self):
-        """
-        Tests is_interface_wired when interface is wireless
-        """
-
-        interface_name = "wlan0"
-        interface_object = "Card Object"
-        adapter = interfaces.NetworkAdapter(interface_name, interface_object, self.mac_address)
-        adapter.is_wireless = True
-        self.network_manager._name_to_object[interface_name] = adapter
-
-        with self.assertRaises(interfaces.InvalidInternetInterfaceError):
-            self.network_manager.is_interface_wired(interface_name)
 
     def test_is_interface_wired_invalid_interface_error(self):
         """
