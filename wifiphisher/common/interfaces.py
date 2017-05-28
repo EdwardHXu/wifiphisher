@@ -520,8 +520,7 @@ class NetworkManager(object):
         """
 
         chosen_interface = None
-        nm_managed_interfaces = []
-        is_perfect_matched = False
+        backup_interface = None
 
         # find an interface with supplied modes
         for interface, adapter in self._name_to_object.iteritems():
@@ -530,47 +529,40 @@ class NetworkManager(object):
                 # in case we have a perfect match set interface and exit
                 if (adapter.has_ap_mode == has_ap_mode and
                         adapter.has_monitor_mode == has_monitor_mode):
-                    is_perfect_matched = True
+                    backup_interface = chosen_interface
                     chosen_interface = interface
 
                 # in case of requested AP mode and interface has AP mode
                 elif has_ap_mode and adapter.has_ap_mode:
-                    # try to choose an interface that is a perfect match
-                    if adapter.has_monitor_mode:
-                        chosen_interface = interface
-                    else:
-                        chosen_interface = interface
-                        is_perfect_matched = True
+                    backup_interface = chosen_interface
+                    chosen_interface = interface
 
                 # in case of requested monitor mode and interface has monitor mode
                 elif has_monitor_mode and adapter.has_monitor_mode:
-                    # try to choose an interface that is a perfect match
-                    if adapter.has_ap_mode:
-                        chosen_interface = interface
-                    else:
-                        is_perfect_matched = True
-                        chosen_interface = interface
-
-                # do the final check for adapter whether is managed by NetworkManager
-                if adapter.is_managed_by_nm:
-                    nm_managed_interfaces.append(interface)
-                    is_perfect_matched = False
-                    chosen_interface = None
-                else:
-                    if is_perfect_matched:
-                        break
+                    backup_interface = chosen_interface
+                    chosen_interface = interface
 
         # return interface if found otherwise raise an error
         if chosen_interface:
-            adapter = self._name_to_object[chosen_interface]
-            self._active.add(chosen_interface)
-            return chosen_interface
-        else:
-            num_of_nm_managed_interfaces = len(nm_managed_interfaces)
-            if num_of_nm_managed_interfaces > 0:
-                raise InterfaceManagedByNetworkManagerError(nm_managed_interfaces[0])
+            interface_adapter = self._name_to_object[chosen_interface]
+            backup_adapter = None
+            if backup_interface is not None:
+                backup_adapter = self._name_to_object[backup_interface]
+
+            if not interface_adapter.is_managed_by_nm:
+                self._active.add(chosen_interface)
+                return chosen_interface
+            # we have only one card
+            elif backup_adapter is None:
+                raise InterfaceManagedByNetworkManagerError(chosen_interface)
+            elif not backup_adapter.is_managed_by_nm:
+                self._active.add(backup_interface)
+                return backup_interface
+            # two cards are both managed
             else:
-                raise InterfaceCantBeFoundError((has_ap_mode, has_monitor_mode))
+                raise InterfaceManagedByNetworkManagerError(chosen_interface)
+        else:
+            raise InterfaceCantBeFoundError((has_ap_mode, has_monitor_mode))
 
     def get_interface_automatically(self):
         """
