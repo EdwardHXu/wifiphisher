@@ -224,8 +224,10 @@ class TestNetworkManager(unittest.TestCase):
         """ Tests is_interface_valid method when interface is valid """
 
         interface_name = "wlan0"
+        interface_object = "Card Object"
+        adapter = interfaces.NetworkAdapter(interface_name, interface_object, self.mac_address)
 
-        self.network_manager._name_to_object[interface_name] = None
+        self.network_manager._name_to_object[interface_name] = adapter
 
         actual = self.network_manager.is_interface_valid(interface_name)
 
@@ -312,12 +314,11 @@ class TestNetworkManager(unittest.TestCase):
 
         interface_name = "wlan0"
         adapter = interfaces.NetworkAdapter(interface_name, "CARD", "00:00:00:00:00:00")
-        adapter.is_managed_by_nm = False
+        adapter.is_managed_by_nm = True
         adapter.has_monitor_mode = True
         self.network_manager._name_to_object[interface_name] = adapter
-        self.assertRaises(
-            interfaces.InterfaceManagedByNetworkManagerError,
-            self.network_manager.is_interface_valid, interface_name, "monitor")
+        with self.assertRaises(interfaces.InterfaceManagedByNetworkManagerError):
+            self.network_manager.is_interface_valid(interface_name, "monitor")
 
     def test_is_interface_valid_mode_monitor_is_managed_by_nm_true(self):
         """
@@ -633,16 +634,6 @@ class TestNetworkManager(unittest.TestCase):
         actual = self.network_manager.get_interface_automatically()
 
         self.assertEqual(expected, actual)
-
-    def test_is_interface_wired_invalid_interface_error(self):
-        """
-        Tests is_interface_wired when interface is invalid
-        """
-
-        interface_name = "wlan0"
-
-        with self.assertRaises(interfaces.InvalidInterfaceError):
-            self.network_manager.is_interface_wired(interface_name)
 
     @mock.patch("wifiphisher.common.interfaces.pyw")
     def test_unblock_interface_is_blocked_none(self, pyric):
