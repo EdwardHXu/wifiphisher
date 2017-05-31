@@ -519,50 +519,55 @@ class NetworkManager(object):
             match will be returned if available
         """
 
-        chosen_interface = None
-        backup_interface = None
+        adapters = [
+            adapter for adapter in self._name_to_object.values() if
+            adapter not in self._active]
 
-        # find an interface with supplied modes
-        for interface, adapter in self._name_to_object.iteritems():
-            # check to make sure interface is not active
-            if interface not in self._active:
-                # in case we have a perfect match set interface and exit
-                if (adapter.has_ap_mode == has_ap_mode and
-                        adapter.has_monitor_mode == has_monitor_mode):
-                    backup_interface = chosen_interface
-                    chosen_interface = interface
+        nm_unmanaged_adapters = set(
+            [adapter for adapter in adapters if adapter.is_managed_by_nm is False]
+            )
+        mon_ap_adapters = set(
+            [
+                adapter for adapter in adapters
+                if adapter.has_ap_mode and adapter.has_monitor_mode]
+            )
+        mon_only_adapters = set(
+            [
+                adapter for adapter in adapters if
+                not adapter.has_ap_mode and adapter.has_monitor_mode]
+            )
+        ap_only_adapters = set(
+            [
+                adapter for adapter in adapters if adapter.has_ap_mode and
+                not adapter.has_monitor_mode]
+            )
 
-                # in case of requested AP mode and interface has AP mode
-                elif has_ap_mode and adapter.has_ap_mode:
-                    backup_interface = chosen_interface
-                    chosen_interface = interface
-
-                # in case of requested monitor mode and interface has monitor mode
-                elif has_monitor_mode and adapter.has_monitor_mode:
-                    backup_interface = chosen_interface
-                    chosen_interface = interface
-
-        # return interface if found otherwise raise an error
-        if chosen_interface:
-            interface_adapter = self._name_to_object[chosen_interface]
-            backup_adapter = None
-            if backup_interface is not None:
-                backup_adapter = self._name_to_object[backup_interface]
-
-            if not interface_adapter.is_managed_by_nm:
-                self._active.add(chosen_interface)
-                return chosen_interface
-            # we have only one card
-            elif backup_adapter is None:
-                raise InterfaceManagedByNetworkManagerError(chosen_interface)
-            elif not backup_adapter.is_managed_by_nm:
-                self._active.add(backup_interface)
-                return backup_interface
-            # two cards are both managed
-            else:
-                raise InterfaceManagedByNetworkManagerError(chosen_interface)
+        if has_ap_mode and has_monitor_mode:
+            all_adapters = mon_ap_adapters
+            perfect_adapters = mon_ap_adapters & nm_unmanaged_adapters
+            backup_adapters = mon_ap_adapters & nm_unmanaged_adapters
+        elif not has_ap_mode and has_monitor_mode:
+            all_adapters = mon_ap_adapters | mon_only_adapters
+            perfect_adapters = mon_only_adapters & nm_unmanaged_adapters
+            backup_adapters = mon_ap_adapters & nm_unmanaged_adapters
         else:
+            all_adapters = mon_ap_adapters | ap_only_adapters
+            perfect_adapters = ap_only_adapters & nm_unmanaged_adapters
+            backup_adapters = mon_ap_adapters & nm_unmanaged_adapters
+
+        if not all_adapters:
             raise InterfaceCantBeFoundError((has_ap_mode, has_monitor_mode))
+        elif not perfect_adapters | backup_adapters:
+            raise InterfaceManagedByNetworkManagerError(list(all_adapters)[0])
+        else:
+            if perfect_adapters:
+                chosen_interface = list(perfect_adapters)[0].name
+                self._active.add(chosen_interface)
+            else:
+                chosen_interface = list(backup_adapters)[0].name
+                self._active.add(chosen_interface)
+
+        return chosen_interface
 
     def get_interface_automatically(self):
         """

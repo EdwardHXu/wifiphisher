@@ -437,6 +437,48 @@ class TestNetworkManager(unittest.TestCase):
         with self.assertRaises(interfaces.InterfaceCantBeFoundError):
             self.network_manager.get_interface(True)
 
+    def test_get_interface_1_ap_interface(self):
+        """
+        Tests get_interface method when one interface supports AP
+        and monitor and the other supports only AP
+        """
+
+        interface_name_0 = "wlan0"
+        interface_name_1 = "wlan1"
+        interface_object = "Card Object"
+        adapter_0 = interfaces.NetworkAdapter(interface_name_0, interface_object, self.mac_address)
+        adapter_1 = interfaces.NetworkAdapter(interface_name_1, interface_object, self.mac_address)
+        self.network_manager._name_to_object[interface_name_0] = adapter_0
+        self.network_manager._name_to_object[interface_name_1] = adapter_1
+        adapter_0.has_monitor_mode = True
+        adapter_0.has_ap_mode = True
+        adapter_1.has_ap_mode = True
+
+        expected = interface_name_1
+        actual = self.network_manager.get_interface(True, False)
+        self.assertEqual(expected, actual)
+
+    def test_get_interface_1_mon_interface(self):
+        """
+        Tests get_interface method when one interface supports AP
+        and monitor and the other supports only Monitor
+        """
+
+        interface_name_0 = "wlan0"
+        interface_name_1 = "wlan1"
+        interface_object = "Card Object"
+        adapter_0 = interfaces.NetworkAdapter(interface_name_0, interface_object, self.mac_address)
+        adapter_1 = interfaces.NetworkAdapter(interface_name_1, interface_object, self.mac_address)
+        self.network_manager._name_to_object[interface_name_0] = adapter_0
+        self.network_manager._name_to_object[interface_name_1] = adapter_1
+        adapter_0.has_monitor_mode = True
+        adapter_0.has_ap_mode = True
+        adapter_1.has_monitor_mode = True
+
+        expected = interface_name_1
+        actual = self.network_manager.get_interface(False, True)
+        self.assertEqual(expected, actual)
+
     def test_get_interface_1_ap_monitor_interface(self):
         """
         Tests get_interface method when interface with both AP and
@@ -499,7 +541,7 @@ class TestNetworkManager(unittest.TestCase):
             interfaces.InterfaceManagedByNetworkManagerError,
             self.network_manager.get_interface, True, True)
 
-    def test_get_interface_2_ap_monitor_is_managed_by_nm_interface(self):
+    def test_get_interface_2_ap_monitor_is_managed_by_nm_1_ap_mon_interface(self):
         """
         Test get_interface method get the correct interface when 1
         card is managed and the other card is unmanaged by NetworkManager
