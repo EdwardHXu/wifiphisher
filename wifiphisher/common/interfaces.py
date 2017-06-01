@@ -499,7 +499,7 @@ class NetworkManager(object):
         pyw.modeset(card, mode)
         pyw.up(card)
 
-    def get_interface(self, has_ap_mode=None, has_monitor_mode=None):
+    def get_interface(self, has_ap_mode=False, has_monitor_mode=False):
         """
         Return the name of a valid interface with modes supplied
 
@@ -519,55 +519,32 @@ class NetworkManager(object):
             match will be returned if available
         """
 
-        adapters = [
-            adapter for adapter in self._name_to_object.values() if
-            adapter not in self._active]
+        possible_adapters = list()
+        for interface, adapter in self._name_to_object.iteritems():
+            # check to make sure interface is not active and not already in the possible list
+            if (interface not in self._active) and (adapter not in possible_adapters):
+                # in case of perfect match case
+                if (adapter.has_ap_mode == has_ap_mode and
+                        adapter.has_monitor_mode == has_monitor_mode):
+                    possible_adapters.insert(0, adapter)
 
-        nm_unmanaged_adapters = set(
-            [adapter for adapter in adapters if adapter.is_managed_by_nm is False]
-            )
-        mon_ap_adapters = set(
-            [
-                adapter for adapter in adapters
-                if adapter.has_ap_mode and adapter.has_monitor_mode]
-            )
-        mon_only_adapters = set(
-            [
-                adapter for adapter in adapters if
-                not adapter.has_ap_mode and adapter.has_monitor_mode]
-            )
-        ap_only_adapters = set(
-            [
-                adapter for adapter in adapters if adapter.has_ap_mode and
-                not adapter.has_monitor_mode]
-            )
+                # in case of requested AP mode and interface has AP mode (Partial match)
+                elif has_ap_mode and adapter.has_ap_mode:
+                    possible_adapters.append(adapter)
+                # in case of requested monitor mode and interface has monitor mode (Partial match)
+                elif has_monitor_mode and adapter.has_monitor_mode:
+                    possible_adapters.append(adapter)
 
-        if has_ap_mode and has_monitor_mode:
-            all_adapters = mon_ap_adapters
-            perfect_adapters = mon_ap_adapters & nm_unmanaged_adapters
-            backup_adapters = mon_ap_adapters & nm_unmanaged_adapters
-        elif not has_ap_mode and has_monitor_mode:
-            all_adapters = mon_ap_adapters | mon_only_adapters
-            perfect_adapters = mon_only_adapters & nm_unmanaged_adapters
-            backup_adapters = mon_ap_adapters & nm_unmanaged_adapters
-        else:
-            all_adapters = mon_ap_adapters | ap_only_adapters
-            perfect_adapters = ap_only_adapters & nm_unmanaged_adapters
-            backup_adapters = mon_ap_adapters & nm_unmanaged_adapters
-
-        if not all_adapters:
-            raise InterfaceCantBeFoundError((has_ap_mode, has_monitor_mode))
-        elif not perfect_adapters | backup_adapters:
-            raise InterfaceManagedByNetworkManagerError(list(all_adapters)[0])
-        else:
-            if perfect_adapters:
-                chosen_interface = list(perfect_adapters)[0].name
+        for adapter in possible_adapters:
+            if not adapter.is_managed_by_nm:
+                chosen_interface = adapter.name
                 self._active.add(chosen_interface)
-            else:
-                chosen_interface = list(backup_adapters)[0].name
-                self._active.add(chosen_interface)
+                return chosen_interface
 
-        return chosen_interface
+        if possible_adapters:
+            raise InterfaceManagedByNetworkManagerError("ALL")
+        else:
+            raise InterfaceCantBeFoundError((has_monitor_mode, has_ap_mode))
 
     def get_interface_automatically(self):
         """
